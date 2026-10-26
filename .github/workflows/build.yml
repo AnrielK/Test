@@ -24,8 +24,33 @@ jobs:
             -configuration Debug \
             CODE_SIGNING_ALLOWED=NO
 
-      - name: Upload app
+      - name: Upload simulator app
         uses: actions/upload-artifact@v4
         with:
           name: KockyHra-simulator
           path: build/Debug-iphonesimulator/KockyHra.app
+
+      # Nepodepsaná .ipa pro iPhone/iPad. Před instalací ji musí podepsat
+      # např. Sideloadly, AltStore nebo Xcode vlastním Apple ID.
+      - name: Build for iPhone (unsigned)
+        run: |
+          xcodebuild build \
+            -project KockyHra.xcodeproj \
+            -target KockyHra \
+            -sdk iphoneos \
+            -configuration Release \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY=""
+
+      - name: Package .ipa
+        run: |
+          mkdir -p ipa/Payload
+          cp -R build/Release-iphoneos/KockyHra.app ipa/Payload/
+          cd ipa && zip -qry ../KockyHra-unsigned.ipa Payload
+
+      - name: Upload .ipa
+        uses: actions/upload-artifact@v4
+        with:
+          name: KockyHra-unsigned-ipa
+          path: KockyHra-unsigned.ipa
