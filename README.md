@@ -50,3 +50,8 @@ Nový doplněk přidáš tak, že do příslušného `enum` v `Model/Outfit.swif
 Při každém pushi do `main` (a u pull requestů) GitHub Actions projekt sestaví
 pro iOS Simulator (`.github/workflows/build.yml`). Hotovou aplikaci pro
 simulátor najdeš u běhu v záložce **Actions** jako artefakt `KockyHra-simulator`.
+
+Build vytvoří i **nepodepsanou .ipa** (artefakt `KockyHra-unsigned-ipa`).
+iPhone nepodepsanou aplikaci nenainstaluje, takže ji nejdřív podepiš svým
+Apple ID, například v aplikaci [Sideloadly](https://sideloadly.io) nebo AltStore.
+S bezplatným Apple ID platí podpis 7 dní.
