@@ -2,37 +2,28 @@ import SwiftUI
 
 @main
 struct KockyHraApp: App {
-    @State private var game = GameState()
+    @StateObject private var gameState = GameState()
 
     var body: some Scene {
         WindowGroup {
-            RootView()
-                .environment(game)
-        }
-    }
-}
-
-struct RootView: View {
-    @Environment(GameState.self) private var game
-
-    var body: some View {
-        ZStack {
-            screen
-                .id(game.screen)
-                .transition(.opacity)
-        }
-        .statusBarHidden()
-        .persistentSystemOverlays(.hidden)
-    }
-
-    @ViewBuilder private var screen: some View {
-        switch game.screen {
-        case .select: SelectCatView()
-        case .menu: MenuView()
-        case .dressUp: DressUpView()
-        case .feeding: FeedingView()
-        case .litter: LitterView()
-        case .grooming: GroomingView()
+            ZStack {
+                switch gameState.currentScreen {
+                case .menu:
+                    MenuView()
+                case .selectCat:
+                    SelectCatView()
+                case .dressUp:
+                    DressUpView()
+                case .feeding:
+                    FeedingView()
+                case .grooming:
+                    GroomingView()
+                case .litter:
+                    LitterView()
+                }
+            }
+            .environmentObject(gameState)
+            .statusBarHidden(true)
         }
     }
 }

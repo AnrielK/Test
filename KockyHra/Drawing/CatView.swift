@@ -1,236 +1,557 @@
 import SwiftUI
 
-enum EyeState {
-    case open
-    /// Spí – očička dolů.
-    case closed
-    /// Směje se – očička obloučkem nahoru.
-    case happy
-}
-
-/// Kočička v plátně 300 × 400 i s oblečením. Velikost se nastavuje přes `BoardView`.
 struct CatView: View {
-    let cat: Cat
-    var outfit = Outfit()
-    var eyes: EyeState = .open
-    var mouthOpen = false
-    var blinks = true
-
-    @State private var blinking = false
+    let catType: CatType
+    var outfit: CatOutfit = CatOutfit()
+    var isWaving: Bool = false
+    var showLowerBody: Bool = true
 
     var body: some View {
         ZStack {
-            CatBodyLayer(cat: cat)
-            if let pants = outfit.pants { pants.view }
-            if let shoes = outfit.shoes { shoes.view }
-            CatArmsLayer(cat: cat)
-            if let shirt = outfit.shirt { shirt.view }
-            CatHeadLayer(cat: cat, eyes: (eyes == .open && blinking) ? .closed : eyes, mouthOpen: mouthOpen)
-            if let glasses = outfit.glasses { glasses.view }
-            if let hat = outfit.hat { hat.view }
-        }
-        .frame(width: Board.width, height: Board.height)
-        .task {
-            guard blinks else { return }
-            while !Task.isCancelled {
-                try? await Task.sleep(for: .seconds(Double.random(in: 2.5...5)))
-                blinking = true
-                try? await Task.sleep(for: .milliseconds(140))
-                blinking = false
+            // Mašle za krkem
+            NeckBowView(color: catType.bowColor)
+                .offset(y: 34)
+
+            if showLowerBody {
+                // Ocas
+                CatTailView(catType: catType)
+                    .offset(x: -44, y: 82)
+
+                // Tělo a tlapky
+                CatBodyView(catType: catType, outfit: outfit, isWaving: isWaving)
+                    .offset(y: 66)
             }
+
+            // Hlava kočičky
+            CatHeadView(catType: catType, outfit: outfit)
+                .offset(y: -22)
+        }
+        .frame(width: 220, height: 260)
+    }
+}
+
+struct NeckBowView: View {
+    let color: Color
+    var body: some View {
+        HStack(spacing: 36) {
+            Ellipse()
+                .fill(color)
+                .frame(width: 44, height: 28)
+                .rotationEffect(.degrees(-20))
+            Ellipse()
+                .fill(color)
+                .frame(width: 44, height: 28)
+                .rotationEffect(.degrees(20))
         }
     }
 }
 
-struct CatBodyLayer: View {
-    let cat: Cat
-
+struct CatTailView: View {
+    let catType: CatType
     var body: some View {
-        ZStack {
-            Limb(path: tail, color: cat.bodyFur, outline: cat.dark, width: 20)
-            Blob(oval(255, 246, 26, 26), cat.paw, line: cat.dark)
-
-            Limb(path: polyline(P(127, 338), P(126, 372)), color: cat.bodyFur, outline: cat.dark, width: 30)
-            Limb(path: polyline(P(173, 338), P(174, 372)), color: cat.bodyFur, outline: cat.dark, width: 30)
-
-            Blob(oval(150, 300, 124, 136), cat.bodyFur, line: cat.dark, width: 3.5)
-            Blob(oval(150, 314, 72, 86), cat.belly)
-            Line(polyline(P(150, 338), P(150, 352)), cat.dark.opacity(0.35), 3)
-
-            foot(124)
-            foot(176)
-        }
-    }
-
-    private var tail: Path {
-        var p = Path()
-        p.move(to: P(188, 348))
-        p.addCurve(to: P(252, 250), control1: P(262, 362), control2: P(280, 290))
-        return p
-    }
-
-    private func foot(_ cx: CGFloat) -> some View {
-        ZStack {
-            Blob(oval(cx, 380, 46, 26), cat.paw, line: cat.dark)
-            Line(polyline(P(cx - 8, 372), P(cx - 8, 380)), cat.dark.opacity(0.5), 2.5)
-            Line(polyline(P(cx + 8, 372), P(cx + 8, 380)), cat.dark.opacity(0.5), 2.5)
+        ZStack(alignment: .leading) {
+            Capsule()
+                .fill(catType.primaryColor)
+                .frame(width: 54, height: 18)
+                .rotationEffect(.degrees(25))
+            Circle()
+                .fill(Color.white)
+                .frame(width: 20, height: 20)
+                .offset(x: -4, y: -10)
         }
     }
 }
 
-struct CatArmsLayer: View {
-    let cat: Cat
+struct CatBodyView: View {
+    let catType: CatType
+    let outfit: CatOutfit
+    let isWaving: Bool
 
     var body: some View {
         ZStack {
-            Limb(path: polyline(P(104, 262), P(74, 300)), color: cat.bodyFur, outline: cat.dark, width: 28)
-            Limb(path: polyline(P(196, 262), P(226, 300)), color: cat.bodyFur, outline: cat.dark, width: 28)
-            paw(70)
-            paw(230)
-        }
-    }
+            // Ručičky
+            HStack(spacing: 74) {
+                CatArmView(color: catType.primaryColor)
+                    .rotationEffect(.degrees(28))
+                CatArmView(color: catType.primaryColor)
+                    .rotationEffect(.degrees(isWaving ? -115 : -28))
+                    .offset(y: isWaving ? -16 : 0)
+            }
+            .offset(y: -8)
 
-    private func paw(_ cx: CGFloat) -> some View {
-        ZStack {
-            Blob(oval(cx, 306, 36, 30), cat.paw, line: cat.dark)
-            Blob(oval(cx, 310, 12, 9), Color(hex: 0xFFA3BC))
-            Blob(oval(cx - 9, 300, 6, 6), Color(hex: 0xFFA3BC))
-            Blob(oval(cx, 297, 6, 6), Color(hex: 0xFFA3BC))
-            Blob(oval(cx + 9, 300, 6, 6), Color(hex: 0xFFA3BC))
+            // Trup
+            RoundedRectangle(cornerRadius: 34)
+                .fill(catType.primaryColor)
+                .frame(width: 78, height: 84)
+
+            // Bílé bříško
+            Ellipse()
+                .fill(Color.white)
+                .frame(width: 50, height: 64)
+                .offset(y: 4)
+
+            // Nožičky / Boty
+            HStack(spacing: 18) {
+                CatFootView(shoe: outfit.shoes)
+                CatFootView(shoe: outfit.shoes)
+            }
+            .offset(y: 40)
+
+            // Kalhoty / sukně
+            if let bottom = outfit.bottom {
+                BottomClothingView(bottom: bottom)
+                    .offset(y: 20)
+            }
+
+            // Tričko / bunda
+            if let top = outfit.top {
+                TopClothingView(top: top)
+                    .offset(y: -2)
+            }
+
+            // Obojek a rolnička
+            VStack(spacing: -2) {
+                Capsule()
+                    .fill(Color.black)
+                    .frame(width: 68, height: 7)
+                ZStack {
+                    Circle()
+                        .fill(catType == .grey ? Color.green : Color(red: 0.25, green: 0.58, blue: 0.98))
+                        .frame(width: 24, height: 24)
+                    Circle()
+                        .fill(Color.black.opacity(0.75))
+                        .frame(width: 6, height: 6)
+                        .offset(y: 2)
+                }
+            }
+            .offset(y: -30)
         }
     }
 }
 
-struct CatHeadLayer: View {
-    let cat: Cat
-    let eyes: EyeState
-    let mouthOpen: Bool
-
-    private let ink = Color(hex: 0x1A1A24)
-    private let earPink = Color(hex: 0xF7B3C2)
-
+struct CatArmView: View {
+    let color: Color
     var body: some View {
-        ZStack {
-            // Obojek se zvonečkem
-            Blob(roundRect(96, 238, 108, 14, 7), Color(hex: 0x2B2B3A))
-            Blob(oval(150, 259, 26, 26), radial([.white, cat.bell], 145, 253, 16), line: .black.opacity(0.35), width: 2)
-            Line(polyline(P(150, 262), P(150, 270)), .black.opacity(0.45), 3)
-
-            // Ouška
-            Blob(poly([P(40, 128), P(60, 18), P(142, 62)]), cat.pattern == .patches ? cat.patch : cat.fur,
-                 line: cat.dark, width: 4)
-            Blob(poly([P(58, 108), P(68, 44), P(118, 70)]), earPink)
-            Blob(poly([P(260, 128), P(240, 18), P(158, 62)]), cat.fur, line: cat.dark, width: 4)
-            Blob(poly([P(242, 108), P(232, 44), P(182, 70)]), earPink)
-
-            // Hlavička
-            Blob(oval(150, 150, 250, 205), radial([cat.furLight, cat.fur], 150, 118, 150),
-                 line: cat.dark, width: 4)
-            pattern
-
-            // Tvářičky
-            Blob(oval(66, 194, 44, 24), Color(hex: 0xFF8FB1).opacity(0.45))
-            Blob(oval(234, 194, 44, 24), Color(hex: 0xFF8FB1).opacity(0.45))
-
-            eye(100, outer: -1)
-            eye(200, outer: 1)
-
-            nose
-            mouth
-            whiskers
+        ZStack(alignment: .bottom) {
+            Capsule()
+                .fill(color)
+                .frame(width: 22, height: 52)
+            Circle()
+                .fill(Color.white)
+                .frame(width: 22, height: 20)
+            // Polštářky tlapek
+            Circle()
+                .fill(color.opacity(0.8))
+                .frame(width: 7, height: 7)
+                .offset(y: -4)
         }
     }
+}
 
-    @ViewBuilder private var pattern: some View {
-        switch cat.pattern {
-        case .tabby:
-            Line(polyline(P(150, 52), P(150, 90)), cat.dark, 9)
-            Line(polyline(P(121, 57), P(130, 86)), cat.dark, 7)
-            Line(polyline(P(179, 57), P(170, 86)), cat.dark, 7)
-            Line(polyline(P(28, 140), P(50, 146)), cat.dark, 5)
-            Line(polyline(P(30, 160), P(50, 160)), cat.dark, 5)
-            Line(polyline(P(272, 140), P(250, 146)), cat.dark, 5)
-            Line(polyline(P(270, 160), P(250, 160)), cat.dark, 5)
-        case .blaze:
-            Blob(poly([P(140, 50), P(160, 50), P(174, 175), P(126, 175)]), Color.white.opacity(0.95))
-            Blob(oval(150, 208, 136, 86), Color.white)
-        case .patches:
-            Blob(oval(203, 140, 108, 100), cat.patch)
-            Blob(oval(96, 82, 66, 40), cat.patch)
-        }
-    }
-
-    @ViewBuilder private func eye(_ cx: CGFloat, outer: CGFloat) -> some View {
-        switch eyes {
-        case .open:
-            ZStack {
-                Blob(oval(cx, 150, 78, 84), Color.white, line: cat.dark, width: 3)
-                Blob(oval(cx, 154, 60, 66), radial([cat.eyeLight, cat.eye], cx, 168, 36))
-                Blob(oval(cx, 154, 30, 38), ink)
-                Blob(oval(cx - 10, 139, 16, 16), Color.white)
-                Blob(oval(cx + 9, 165, 8, 8), Color.white.opacity(0.9))
-                Line(polyline(P(cx + outer * 35, 130), P(cx + outer * 48, 120)), ink, 3.5)
-                Line(polyline(P(cx + outer * 39, 141), P(cx + outer * 53, 135)), ink, 3.5)
+struct CatFootView: View {
+    let shoe: ShoeType?
+    var body: some View {
+        if let shoe = shoe {
+            switch shoe {
+            case .blackSneakers:
+                ZStack {
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(Color.black)
+                        .frame(width: 28, height: 20)
+                    Rectangle()
+                        .fill(Color.white)
+                        .frame(width: 28, height: 5)
+                        .offset(y: 6)
+                    Text("⋈")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundColor(.white)
+                        .offset(y: -2)
+                }
+            case .pinkBowShoes:
+                ZStack {
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(Color.pink)
+                        .frame(width: 28, height: 18)
+                    Circle()
+                        .fill(Color.purple)
+                        .frame(width: 8, height: 8)
+                        .offset(y: -5)
+                }
+            case .yellowBoots:
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(Color.yellow)
+                    .frame(width: 28, height: 22)
+            case .redRunners:
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(Color.red)
+                    .frame(width: 28, height: 18)
             }
-        case .closed:
-            ZStack {
-                Line(curve(P(cx - 32, 150), P(cx, 174), P(cx + 32, 150)), ink, 5)
-                Line(polyline(P(cx + outer * 30, 154), P(cx + outer * 42, 162)), ink, 3)
-                Line(polyline(P(cx + outer * 20, 162), P(cx + outer * 28, 172)), ink, 3)
-            }
-        case .happy:
-            Line(curve(P(cx - 30, 160), P(cx, 128), P(cx + 30, 160)), ink, 6)
-        }
-    }
-
-    private var nose: some View {
-        var p = Path()
-        p.move(to: P(139, 188))
-        p.addQuadCurve(to: P(161, 188), control: P(150, 181))
-        p.addQuadCurve(to: P(150, 200), control: P(161, 195))
-        p.addQuadCurve(to: P(139, 188), control: P(139, 195))
-        p.closeSubpath()
-        return Blob(p, Color(hex: 0xF27A98), line: Color(hex: 0xC94F70), width: 2)
-    }
-
-    @ViewBuilder private var mouth: some View {
-        if mouthOpen {
-            Blob(oval(150, 216, 32, 28), Color(hex: 0x7A2335), line: ink, width: 2.5)
-            Blob(oval(150, 225, 18, 9), Color(hex: 0xFF8FA8))
         } else {
-            Line(polyline(P(150, 199), P(150, 205)), ink, 3)
-            Line(mouthPath, ink, 3)
-        }
-    }
-
-    private var mouthPath: Path {
-        var p = Path()
-        p.move(to: P(130, 203))
-        p.addQuadCurve(to: P(150, 205), control: P(139, 218))
-        p.addQuadCurve(to: P(170, 203), control: P(161, 218))
-        return p
-    }
-
-    private var whiskers: some View {
-        ZStack {
-            ForEach(Array(whiskerLines.enumerated()), id: \.offset) { _, w in
-                Line(polyline(P(w.0, w.1), P(w.2, w.3)), ink.opacity(0.85), 2.5)
-                Line(polyline(P(300 - w.0, w.1), P(300 - w.2, w.3)), ink.opacity(0.85), 2.5)
+            ZStack {
+                Capsule()
+                    .fill(Color.white)
+                    .frame(width: 24, height: 14)
+                HStack(spacing: 3) {
+                    Circle().fill(Color.gray.opacity(0.35)).frame(width: 4, height: 4)
+                    Circle().fill(Color.gray.opacity(0.35)).frame(width: 4, height: 4)
+                }
             }
         }
     }
+}
 
-    private var whiskerLines: [(CGFloat, CGFloat, CGFloat, CGFloat)] {
-        [(60, 182, 12, 172), (60, 190, 8, 193), (62, 198, 14, 213)]
+struct TopClothingView: View {
+    let top: TopType
+    var body: some View {
+        switch top {
+        case .policeJacket:
+            ZStack {
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(Color(red: 0.14, green: 0.14, blue: 0.16))
+                    .frame(width: 80, height: 56)
+                VStack(spacing: 7) {
+                    Circle().fill(Color.gray).frame(width: 5, height: 5)
+                    Circle().fill(Color.gray).frame(width: 5, height: 5)
+                }
+                .offset(y: 6)
+            }
+        case .pinkShirt:
+            RoundedRectangle(cornerRadius: 16)
+                .fill(Color.pink)
+                .frame(width: 78, height: 50)
+        case .stripedSweater:
+            RoundedRectangle(cornerRadius: 16)
+                .fill(Color.orange)
+                .frame(width: 78, height: 52)
+        case .superheroCape:
+            RoundedRectangle(cornerRadius: 16)
+                .fill(Color.red)
+                .frame(width: 82, height: 54)
+        }
     }
 }
 
-#Preview {
-    HStack {
-        ForEach(Cat.all) { cat in
-            BoardView(height: 300) { CatView(cat: cat) }
+struct BottomClothingView: View {
+    let bottom: BottomType
+    var body: some View {
+        switch bottom {
+        case .blueShorts:
+            RoundedRectangle(cornerRadius: 10)
+                .fill(Color.blue)
+                .frame(width: 74, height: 28)
+        case .pinkSkirt:
+            Capsule()
+                .fill(Color.pink.opacity(0.9))
+                .frame(width: 84, height: 26)
+        case .denimJeans:
+            RoundedRectangle(cornerRadius: 10)
+                .fill(Color.indigo)
+                .frame(width: 74, height: 30)
+        case .overalls:
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color.cyan)
+                .frame(width: 76, height: 34)
         }
     }
-    .padding()
-    .background(Color(hex: 0xF7C9A8))
+}
+
+struct CatHeadView: View {
+    let catType: CatType
+    let outfit: CatOutfit
+
+    var body: some View {
+        ZStack {
+            // Uši
+            HStack(spacing: 68) {
+                CatEarView(outerColor: catType == .spotted ? Color(red: 0.18, green: 0.16, blue: 0.16) : catType.primaryColor)
+                    .rotationEffect(.degrees(-18))
+                CatEarView(outerColor: catType == .spotted ? Color(red: 0.18, green: 0.16, blue: 0.16) : catType.primaryColor)
+                    .rotationEffect(.degrees(18))
+            }
+            .offset(y: -48)
+
+            // Základ hlavy
+            Ellipse()
+                .fill(catType == .spotted ? Color.white : catType.primaryColor)
+                .frame(width: 166, height: 132)
+
+            // Zbarvení obličeje podle typu kočičky
+            if catType == .ginger {
+                // Bílý pruh přes čelo a čumáček
+                Capsule()
+                    .fill(Color.white)
+                    .frame(width: 54, height: 118)
+                    .offset(y: 6)
+                Ellipse()
+                    .fill(Color.white)
+                    .frame(width: 136, height: 58)
+                    .offset(y: 36)
+            } else if catType == .spotted {
+                // Hnědé flíčky kolem očí a srdíčko na tváři
+                Ellipse()
+                    .fill(catType.primaryColor)
+                    .frame(width: 72, height: 68)
+                    .rotationEffect(.degrees(-20))
+                    .offset(x: -38, y: -6)
+                Ellipse()
+                    .fill(catType.primaryColor)
+                    .frame(width: 60, height: 60)
+                    .rotationEffect(.degrees(18))
+                    .offset(x: 38, y: 0)
+                Image(systemName: "heart.fill")
+                    .font(.system(size: 16))
+                    .foregroundColor(catType.primaryColor)
+                    .rotationEffect(.degrees(-25))
+                    .offset(x: 48, y: 36)
+            } else if catType == .grey {
+                Ellipse()
+                    .fill(Color.white.opacity(0.28))
+                    .frame(width: 120, height: 54)
+                    .offset(y: 34)
+            }
+
+            // Růžové tvářičky
+            HStack(spacing: 82) {
+                Ellipse().fill(Color.pink.opacity(0.35)).frame(width: 28, height: 16)
+                Ellipse().fill(Color.pink.opacity(0.35)).frame(width: 28, height: 16)
+            }
+            .offset(y: 22)
+
+            // Obočí
+            HStack(spacing: 48) {
+                Capsule()
+                    .fill(Color(red: 0.35, green: 0.18, blue: 0.08))
+                    .frame(width: 18, height: 9)
+                    .rotationEffect(.degrees(-16))
+                Capsule()
+                    .fill(Color(red: 0.35, green: 0.18, blue: 0.08))
+                    .frame(width: 18, height: 9)
+                    .rotationEffect(.degrees(16))
+            }
+            .offset(y: -34)
+
+            // Velké třpytivé oči
+            HStack(spacing: 18) {
+                CatEyeView(irisColor: catType.eyeColor)
+                CatEyeView(irisColor: catType.eyeColor)
+            }
+            .offset(y: 0)
+
+            // Čumáček a tlamička
+            VStack(spacing: 1) {
+                Ellipse()
+                    .fill(Color(red: 0.95, green: 0.38, blue: 0.52))
+                    .frame(width: 14, height: 10)
+                CatMouthShape()
+                    .stroke(Color.black, style: StrokeStyle(lineWidth: 2.5, lineCap: .round))
+                    .frame(width: 26, height: 10)
+            }
+            .offset(y: 26)
+
+            // Vousky
+            HStack(spacing: 118) {
+                WhiskersView(isLeft: true)
+                WhiskersView(isLeft: false)
+            }
+            .offset(y: 22)
+
+            // Brýle
+            if let glasses = outfit.glasses {
+                GlassesOverlayView(glasses: glasses)
+                    .offset(y: -2)
+            }
+
+            // Čepice / Klobouk
+            if let hat = outfit.hat {
+                HatOverlayView(hat: hat)
+                    .offset(y: -66)
+            }
+        }
+    }
+}
+
+struct CatEarView: View {
+    let outerColor: Color
+    var body: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 14)
+                .fill(outerColor)
+                .frame(width: 52, height: 58)
+            RoundedRectangle(cornerRadius: 10)
+                .fill(Color(red: 0.98, green: 0.76, blue: 0.80))
+                .frame(width: 32, height: 38)
+        }
+    }
+}
+
+struct CatEyeView: View {
+    let irisColor: Color
+    var body: some View {
+        ZStack {
+            Circle()
+                .fill(Color.white)
+                .frame(width: 54, height: 54)
+                .overlay(Circle().stroke(Color.black, lineWidth: 2.5))
+
+            Circle()
+                .fill(
+                    RadialGradient(
+                        colors: [irisColor.opacity(0.8), irisColor, Color.black],
+                        center: .center,
+                        startRadius: 4,
+                        endRadius: 24
+                    )
+                )
+                .frame(width: 44, height: 44)
+
+            Circle()
+                .fill(Color.black)
+                .frame(width: 28, height: 28)
+
+            // Odlesky v očích
+            Circle()
+                .fill(Color.white)
+                .frame(width: 12, height: 12)
+                .offset(x: -8, y: -8)
+            Circle()
+                .fill(Color.white.opacity(0.85))
+                .frame(width: 6, height: 6)
+                .offset(x: 8, y: 8)
+        }
+    }
+}
+
+struct CatMouthShape: Shape {
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        path.move(to: CGPoint(x: 0, y: 2))
+        path.addQuadCurve(to: CGPoint(x: rect.midX, y: 2), control: CGPoint(x: rect.width * 0.25, y: rect.height))
+        path.addQuadCurve(to: CGPoint(x: rect.maxX, y: 2), control: CGPoint(x: rect.width * 0.75, y: rect.height))
+        return path
+    }
+}
+
+struct WhiskersView: View {
+    let isLeft: Bool
+    var body: some View {
+        VStack(spacing: 7) {
+            Capsule().fill(Color.black.opacity(0.8)).frame(width: 28, height: 2)
+                .rotationEffect(.degrees(isLeft ? 10 : -10))
+            Capsule().fill(Color.black.opacity(0.8)).frame(width: 30, height: 2)
+            Capsule().fill(Color.black.opacity(0.8)).frame(width: 28, height: 2)
+                .rotationEffect(.degrees(isLeft ? -10 : 10))
+        }
+    }
+}
+
+struct GlassesOverlayView: View {
+    let glasses: GlassesType
+    var body: some View {
+        switch glasses {
+        case .brownAviators:
+            HStack(spacing: 8) {
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(Color.brown.opacity(0.55))
+                    .frame(width: 68, height: 52)
+                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color(red: 0.38, green: 0.20, blue: 0.10), lineWidth: 4))
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(Color.brown.opacity(0.55))
+                    .frame(width: 68, height: 52)
+                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color(red: 0.38, green: 0.20, blue: 0.10), lineWidth: 4))
+            }
+            .overlay(Rectangle().fill(Color(red: 0.38, green: 0.20, blue: 0.10)).frame(width: 14, height: 5))
+        case .starGlasses:
+            HStack(spacing: 14) {
+                Image(systemName: "star.fill").font(.system(size: 50)).foregroundColor(.pink.opacity(0.75))
+                Image(systemName: "star.fill").font(.system(size: 50)).foregroundColor(.pink.opacity(0.75))
+            }
+        case .heartGlasses:
+            HStack(spacing: 14) {
+                Image(systemName: "heart.fill").font(.system(size: 48)).foregroundColor(.red.opacity(0.75))
+                Image(systemName: "heart.fill").font(.system(size: 48)).foregroundColor(.red.opacity(0.75))
+            }
+        case .roundFrames:
+            HStack(spacing: 12) {
+                Circle().stroke(Color.purple, lineWidth: 4).frame(width: 58, height: 58)
+                Circle().stroke(Color.purple, lineWidth: 4).frame(width: 58, height: 58)
+            }
+        }
+    }
+}
+
+struct HatOverlayView: View {
+    let hat: HatType
+    var body: some View {
+        switch hat {
+        case .tangerineBeret:
+            ZStack {
+                Capsule()
+                    .fill(Color.orange)
+                    .frame(width: 78, height: 36)
+                HStack(spacing: 2) {
+                    Ellipse().fill(Color.green).frame(width: 18, height: 10).rotationEffect(.degrees(-25))
+                    Ellipse().fill(Color.green).frame(width: 22, height: 12).rotationEffect(.degrees(20))
+                }
+                .offset(y: -20)
+            }
+        case .heartHeadband:
+            ZStack {
+                Capsule()
+                    .fill(Color.black)
+                    .frame(width: 96, height: 10)
+                    .offset(y: 12)
+                HStack(spacing: 42) {
+                    Image(systemName: "heart.fill")
+                        .font(.system(size: 22))
+                        .foregroundColor(.white)
+                        .padding(4)
+                        .background(Circle().fill(Color.black))
+                    Image(systemName: "heart.fill")
+                        .font(.system(size: 22))
+                        .foregroundColor(.white)
+                        .padding(4)
+                        .background(Circle().fill(Color.black))
+                }
+                .offset(y: -8)
+            }
+        case .sunHat:
+            ZStack {
+                Capsule().fill(Color.purple.opacity(0.75)).frame(width: 118, height: 22).offset(y: 10)
+                RoundedRectangle(cornerRadius: 16).fill(Color.purple.opacity(0.85)).frame(width: 68, height: 30)
+                Circle().fill(Color.yellow).frame(width: 14, height: 14).offset(x: 16, y: 2)
+            }
+        case .flowerCrown:
+            HStack(spacing: -4) {
+                ForEach(0..<5, id: \.self) { _ in
+                    ZStack {
+                        Image(systemName: "seal.fill").font(.system(size: 24)).foregroundColor(.yellow)
+                        Circle().fill(Color.orange).frame(width: 8, height: 8)
+                    }
+                }
+            }
+            .offset(y: 10)
+        case .goldCrown:
+            ZStack {
+                Image(systemName: "crown.fill")
+                    .font(.system(size: 46))
+                    .foregroundColor(.yellow)
+                    .shadow(color: .orange, radius: 1)
+            }
+        case .policeCap:
+            ZStack {
+                Capsule()
+                    .fill(Color(red: 0.10, green: 0.10, blue: 0.12))
+                    .frame(width: 108, height: 48)
+                Capsule()
+                    .fill(Color.black)
+                    .frame(width: 86, height: 16)
+                    .offset(y: 18)
+                Image(systemName: "pentagon.fill")
+                    .font(.system(size: 22))
+                    .foregroundColor(.white)
+                    .rotationEffect(.degrees(180))
+                    .offset(y: -2)
+            }
+        }
+    }
 }

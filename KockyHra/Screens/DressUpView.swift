@@ -1,174 +1,221 @@
 import SwiftUI
 
-enum WardrobeCategory: CaseIterable, Identifiable {
-    case hat, shirt, pants, shoes, glasses
-    var id: Self { self }
-
-    /// Oblast plátna kočičky, kterou ukazují náhledy.
-    var region: CGRect {
-        switch self {
-        case .hat: CGRect(x: 55, y: -25, width: 205, height: 135)
-        case .glasses: CGRect(x: 40, y: 95, width: 220, height: 110)
-        case .shirt: CGRect(x: 60, y: 228, width: 180, height: 150)
-        case .pants: CGRect(x: 70, y: 312, width: 160, height: 70)
-        case .shoes: CGRect(x: 90, y: 340, width: 120, height: 56)
-        }
-    }
-
-    var items: [WardrobeItem] {
-        switch self {
-        case .hat:
-            Hat.allCases.map { h in
-                WardrobeItem(id: h.rawValue, view: AnyView(h.view),
-                             isWorn: { $0.hat == h }, toggle: { $0.hat = $0.hat == h ? nil : h })
-            }
-        case .glasses:
-            Glasses.allCases.map { item in
-                WardrobeItem(id: item.rawValue, view: AnyView(item.view),
-                             isWorn: { $0.glasses == item }, toggle: { $0.glasses = $0.glasses == item ? nil : item })
-            }
-        case .shirt:
-            Shirt.allCases.map { item in
-                WardrobeItem(id: item.rawValue, view: AnyView(item.view),
-                             isWorn: { $0.shirt == item }, toggle: { $0.shirt = $0.shirt == item ? nil : item })
-            }
-        case .pants:
-            Pants.allCases.map { item in
-                WardrobeItem(id: item.rawValue, view: AnyView(item.view),
-                             isWorn: { $0.pants == item }, toggle: { $0.pants = $0.pants == item ? nil : item })
-            }
-        case .shoes:
-            Shoes.allCases.map { item in
-                WardrobeItem(id: item.rawValue, view: AnyView(item.view),
-                             isWorn: { $0.shoes == item }, toggle: { $0.shoes = $0.shoes == item ? nil : item })
-            }
-        }
-    }
-}
-
-struct WardrobeItem: Identifiable {
-    let id: String
-    let view: AnyView
-    let isWorn: (Outfit) -> Bool
-    let toggle: (inout Outfit) -> Void
-}
-
-/// Šatník: vlevo kočička na koberečku, vpravo skříňka s oblečením.
 struct DressUpView: View {
-    @Environment(GameState.self) private var game
-    @State private var category: WardrobeCategory = .hat
-    @State private var bounce = 0
-    @State private var celebrate = false
+    @EnvironmentObject var gameState: GameState
+    @State private var selectedCategory: OutfitCategory = .hats
 
     var body: some View {
-        GeometryReader { g in
-            let w = g.size.width, h = g.size.height
-            let catX = w * 0.28
-            ZStack {
-                RoomBackground()
+        ZStack {
+            StripedRoomBackground(
+                baseColor: Color(red: 0.92, green: 0.76, blue: 0.62),
+                stripeColor: Color(red: 0.88, green: 0.70, blue: 0.55),
+                showTopCurtains: true
+            )
 
-                Rug().frame(width: w * 0.38, height: h * 0.26)
-                    .position(x: catX, y: h * 0.87)
+            HStack {
+                // Kočička na fialovém krajkovém koberci
+                ZStack {
+                    ScallopedOvalCarpet()
+                        .offset(y: 108)
 
-                BoardView(height: h * 0.8) {
-                    CatView(cat: game.cat, outfit: game.outfit, eyes: celebrate ? .happy : .open, mouthOpen: celebrate)
+                    CatView(
+                        catType: gameState.selectedCat,
+                        outfit: gameState.currentOutfit
+                    )
+                    .scaleEffect(1.08)
                 }
-                .phaseAnimator([0.0, 1.0], trigger: bounce) { view, phase in
-                    view.scaleEffect(x: 1 + 0.05 * phase, y: 1 - 0.04 * phase, anchor: .bottom)
-                }
-                .position(x: catX, y: h * 0.55)
+                .frame(maxWidth: .infinity)
+                .offset(x: -24, y: 18)
 
-                SparkleBurst(trigger: bounce)
-                    .position(x: catX, y: h * 0.45)
+                // Pravý šatní panel se záložkami
+                WardrobePanelView(
+                    selectedCategory: $selectedCategory,
+                    outfit: Binding(
+                        get: { gameState.currentOutfit },
+                        set: { gameState.currentOutfit = $0 }
+                    )
+                )
+                .padding(.trailing, 24)
+            }
 
-                HangingCheckButton(size: h * 0.17, rope: h * 0.17) {
-                    guard !celebrate else { return }
-                    game.completeGame()
-                    celebrate = true
-                }
-                .position(x: w * 0.5, y: h * 0.17)
-
-                wardrobe(height: h * 0.86)
-                    .position(x: w * 0.78, y: h * 0.52)
-
-                VStack {
-                    HStack {
-                        HomeButton { game.go(.menu) }
-                        Spacer()
+            // Závěsné zelené tlačítko s fajfkou uprostřed nahoře
+            VStack {
+                HangingCheckButton {
+                    withAnimation {
+                        gameState.currentScreen = .feeding
                     }
+                }
+                Spacer()
+            }
+            .offset(x: -24)
+
+            // Tlačítko Domů vlevo nahoře
+            VStack {
+                HStack {
+                    TopCircleButton(systemIcon: "house.fill") {
+                        withAnimation {
+                            gameState.currentScreen = .selectCat
+                        }
+                    }
+                    .padding(.leading, 22)
+                    .padding(.top, 18)
                     Spacer()
                 }
-                .padding(.horizontal, 28)
-                .padding(.top, 16)
-
-                if celebrate {
-                    CelebrationView(title: "Sluší ti to!") { game.go(.menu) }
-                }
+                Spacer()
             }
         }
-        .ignoresSafeArea()
     }
+}
 
-    private func wardrobe(height: CGFloat) -> some View {
-        let tab = height * 0.15
-        let cell = height * 0.29
-        return HStack(spacing: -6) {
-            // Záložky s kategoriemi
-            VStack(spacing: tab * 0.12) {
-                ForEach(WardrobeCategory.allCases) { c in
-                    Button {
-                        Haptics.tap()
-                        category = c
-                    } label: {
-                        ZStack {
-                            RoundedRectangle(cornerRadius: 14)
-                                .fill(c == category ? Color(hex: 0x8EDB4E) : Color(hex: 0xF27DB8))
-                            RoundedRectangle(cornerRadius: 11)
-                                .strokeBorder(Color.white, style: StrokeStyle(lineWidth: 3, dash: [5, 4]))
-                                .padding(3)
-                            RegionThumb(region: c.region, size: tab * 0.78) { c.items[0].view }
-                        }
-                        .frame(width: tab, height: tab)
-                    }
-                    .buttonStyle(BouncyButtonStyle())
+struct WardrobePanelView: View {
+    @Binding var selectedCategory: OutfitCategory
+    @Binding var outfit: CatOutfit
+
+    var body: some View {
+        HStack(spacing: -6) {
+            // 5 bočních záložek kategorií
+            VStack(spacing: 8) {
+                CategoryTabButton(icon: "baseball.cap.fill", isSelected: selectedCategory == .hats) {
+                    selectedCategory = .hats
+                }
+                CategoryTabButton(icon: "tshirt.fill", isSelected: selectedCategory == .tops) {
+                    selectedCategory = .tops
+                }
+                CategoryTabButton(icon: "figure.walk", isSelected: selectedCategory == .bottoms) {
+                    selectedCategory = .bottoms
+                }
+                CategoryTabButton(icon: "shoe.fill", isSelected: selectedCategory == .shoes) {
+                    selectedCategory = .shoes
+                }
+                CategoryTabButton(icon: "eyeglasses", isSelected: selectedCategory == .glasses) {
+                    selectedCategory = .glasses
                 }
             }
-            .padding(10)
-            .background(RoundedRectangle(cornerRadius: 22).fill(Color(hex: 0x4FA8F0)))
-
-            // Mřížka s věcmi
-            ScrollView(showsIndicators: false) {
-                LazyVGrid(columns: [GridItem(.fixed(cell), spacing: 14), GridItem(.fixed(cell))], spacing: 14) {
-                    ForEach(category.items) { item in
-                        let worn = item.isWorn(game.outfit)
-                        Button {
-                            Haptics.pop()
-                            var o = game.outfit
-                            item.toggle(&o)
-                            game.outfit = o
-                            bounce += 1
-                        } label: {
-                            ZStack {
-                                RoundedRectangle(cornerRadius: 20)
-                                    .fill(worn ? Color(hex: 0x8EDB4E) : Color(hex: 0x9AD6FF))
-                                    .shadow(color: worn ? Color(hex: 0x5AAE2A) : Color(hex: 0x5AAEF0), radius: 0, y: 5)
-                                RegionThumb(region: category.region, size: cell * 0.84) { item.view }
-                            }
-                            .frame(width: cell, height: cell)
-                        }
-                        .buttonStyle(BouncyButtonStyle())
-                    }
-                }
-                .padding(16)
-            }
-            .frame(width: cell * 2 + 46)
+            .padding(.vertical, 14)
+            .padding(.leading, 8)
+            .padding(.trailing, 10)
             .background(
-                RoundedRectangle(cornerRadius: 34).fill(Color(hex: 0xE3F4FF))
+                RoundedRectangle(cornerRadius: 20)
+                    .fill(Color(red: 0.25, green: 0.68, blue: 0.98))
+                    .overlay(RoundedRectangle(cornerRadius: 20).stroke(Color.white, lineWidth: 3))
             )
-            .overlay(RoundedRectangle(cornerRadius: 34).strokeBorder(Color(hex: 0x4FA8F0), lineWidth: 12))
-            .overlay(RoundedRectangle(cornerRadius: 34).inset(by: -4).strokeBorder(Color.white, lineWidth: 4))
-            .clipShape(RoundedRectangle(cornerRadius: 34).inset(by: -8))
+
+            // Hlavní mřížka 2x3 s položkami
+            ZStack {
+                RoundedRectangle(cornerRadius: 34)
+                    .fill(Color(red: 0.78, green: 0.92, blue: 1.0))
+                    .frame(width: 248, height: 320)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 34)
+                            .stroke(Color(red: 0.25, green: 0.68, blue: 0.98), lineWidth: 8)
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 34)
+                            .stroke(Color.white, lineWidth: 3)
+                    )
+
+                ScrollView(showsIndicators: false) {
+                    LazyVGrid(columns: [GridItem(.fixed(96), spacing: 14), GridItem(.fixed(96), spacing: 14)], spacing: 14) {
+                        switch selectedCategory {
+                        case .hats:
+                            ForEach(HatType.allCases) { hat in
+                                WardrobeItemCell(isSelected: outfit.hat == hat) {
+                                    outfit.hat = (outfit.hat == hat) ? nil : hat
+                                } content: {
+                                    HatOverlayView(hat: hat)
+                                        .scaleEffect(0.68)
+                                }
+                            }
+                        case .tops:
+                            ForEach(TopType.allCases) { top in
+                                WardrobeItemCell(isSelected: outfit.top == top) {
+                                    outfit.top = (outfit.top == top) ? nil : top
+                                } content: {
+                                    TopClothingView(top: top)
+                                        .scaleEffect(0.75)
+                                }
+                            }
+                        case .bottoms:
+                            ForEach(BottomType.allCases) { bottom in
+                                WardrobeItemCell(isSelected: outfit.bottom == bottom) {
+                                    outfit.bottom = (outfit.bottom == bottom) ? nil : bottom
+                                } content: {
+                                    BottomClothingView(bottom: bottom)
+                                        .scaleEffect(0.85)
+                                }
+                            }
+                        case .shoes:
+                            ForEach(ShoeType.allCases) { shoe in
+                                WardrobeItemCell(isSelected: outfit.shoes == shoe) {
+                                    outfit.shoes = (outfit.shoes == shoe) ? nil : shoe
+                                } content: {
+                                    CatFootView(shoe: shoe)
+                                        .scaleEffect(1.4)
+                                }
+                            }
+                        case .glasses:
+                            ForEach(GlassesType.allCases) { glasses in
+                                WardrobeItemCell(isSelected: outfit.glasses == glasses) {
+                                    outfit.glasses = (outfit.glasses == glasses) ? nil : glasses
+                                } content: {
+                                    GlassesOverlayView(glasses: glasses)
+                                        .scaleEffect(0.52)
+                                }
+                            }
+                        }
+                    }
+                    .padding(.vertical, 18)
+                }
+                .frame(width: 224, height: 296)
+                .clipShape(RoundedRectangle(cornerRadius: 26))
+            }
         }
-        .frame(height: height)
+    }
+}
+
+struct CategoryTabButton: View {
+    let icon: String
+    let isSelected: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            RoundedRectangle(cornerRadius: 12)
+                .fill(isSelected ? Color(red: 0.52, green: 0.88, blue: 0.28) : Color(red: 0.94, green: 0.45, blue: 0.78))
+                .frame(width: 48, height: 48)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(Color.white, lineWidth: 3)
+                )
+                .overlay(
+                    Image(systemName: icon)
+                        .font(.system(size: 20, weight: .bold))
+                        .foregroundColor(.white)
+                )
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+struct WardrobeItemCell<Content: View>: View {
+    let isSelected: Bool
+    let action: () -> Void
+    @ViewBuilder let content: () -> Content
+
+    var body: some View {
+        Button(action: action) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 18)
+                    .fill(Color(red: 0.52, green: 0.82, blue: 0.98))
+                    .frame(width: 94, height: 84)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 18)
+                            .stroke(isSelected ? Color.yellow : Color(red: 0.36, green: 0.70, blue: 0.92), lineWidth: isSelected ? 4 : 2)
+                    )
+
+                content()
+            }
+        }
+        .buttonStyle(.plain)
     }
 }
