@@ -1,87 +1,89 @@
 import SwiftUI
 
-/// Jeviště se třemi spícími koťátky. Ťuknutím se koťátko probudí a jde se hrát.
 struct SelectCatView: View {
-    @Environment(GameState.self) private var game
-    @State private var awake: Int?
-    @State private var hop = false
+    @EnvironmentObject var gameState: GameState
 
     var body: some View {
-        GeometryReader { g in
-            let w = g.size.width, h = g.size.height
-            ZStack {
-                VStack(spacing: 0) {
-                    TileWall(color: Color(hex: 0xA8D4FF), line: Color(hex: 0x93C6F8), tile: 90, diagonal: true)
-                        .frame(height: h * 0.5)
-                    Color(hex: 0x7FB6F0).frame(height: h * 0.03)
-                    LinearGradient(colors: [Color(hex: 0xE6B9A8), Color(hex: 0xD49B8A)], startPoint: .top, endPoint: .bottom)
+        ZStack {
+            QuiltedRoomBackground(
+                wallColor: Color(red: 0.56, green: 0.80, blue: 0.98),
+                lineColor: Color(red: 0.28, green: 0.62, blue: 0.92),
+                curtainColor: Color(red: 0.85, green: 0.26, blue: 0.78)
+            )
+
+            // Třpytky kolem kočiček
+            SparkleView(size: 16).offset(x: -110, y: -60)
+            SparkleView(size: 18).offset(x: 115, y: -75)
+            SparkleView(size: 14).offset(x: 90, y: 40)
+
+            // 3 kočičky na pódiích
+            HStack(spacing: 42) {
+                // 1. Zrzavobílá kočička (vlevo)
+                CatStageSlot(
+                    catType: .ginger,
+                    outfit: gameState.outfits[.ginger] ?? CatOutfit(),
+                    isWaving: true
+                ) {
+                    gameState.selectCat(.ginger)
                 }
-                StageCurtains()
+                .offset(y: -14)
 
-                ForEach(Array(Cat.all.enumerated()), id: \.element.id) { index, cat in
-                    let x = w * (0.24 + 0.26 * CGFloat(index))
-                    let big = index == 1
-                    let catH = h * (big ? 0.66 : 0.58)
-                    let baseY = h * (big ? 0.8 : 0.74)
-                    let isAwake = awake == cat.id
-
-                    Pedestal()
-                        .frame(width: w * (big ? 0.27 : 0.23), height: h * 0.2)
-                        .position(x: x, y: baseY)
-
-                    BoardView(height: catH) {
-                        CatView(cat: cat, eyes: isAwake ? .happy : .closed, mouthOpen: isAwake, blinks: false)
-                    }
-                    .contentShape(Rectangle())
-                    .onTapGesture { pick(cat) }
-                    .scaleEffect(isAwake && hop ? 1.08 : 1, anchor: .bottom)
-                    .offset(y: isAwake && hop ? -h * 0.06 : 0)
-                    .position(x: x, y: baseY - catH * 0.44)
-
-                    Text(cat.name)
-                        .font(.system(size: 22, weight: .heavy, design: .rounded))
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 4)
-                        .background(Capsule().fill(Color(hex: 0xD9408F)))
-                        .position(x: x, y: baseY + h * 0.11)
+                // 2. Hnědobílá kočička (uprostřed, mírně vpředu)
+                CatStageSlot(
+                    catType: .spotted,
+                    outfit: gameState.outfits[.spotted] ?? CatOutfit(),
+                    isWaving: false
+                ) {
+                    gameState.selectCat(.spotted)
                 }
+                .scaleEffect(1.06)
+                .offset(y: 18)
 
-                VStack {
-                    HStack {
-                        Spacer()
-                        HintBubble(text: awake == nil ? "Ťukni na koťátko a probuď ho!" : "Mňau! Jdeme si hrát!")
-                        Spacer()
+                // 3. Šedá kočička v policejním (vpravo)
+                CatStageSlot(
+                    catType: .grey,
+                    outfit: gameState.outfits[.grey] ?? CatOutfit.policePreset,
+                    isWaving: false
+                ) {
+                    gameState.selectCat(.grey)
+                }
+                .offset(y: -14)
+            }
+            .offset(y: 18)
+
+            // Tlačítko Domů vlevo nahoře
+            VStack {
+                HStack {
+                    TopCircleButton(systemIcon: "house.fill") {
+                        withAnimation {
+                            gameState.currentScreen = .menu
+                        }
                     }
+                    .padding(.leading, 22)
+                    .padding(.top, 18)
                     Spacer()
                 }
-                .padding(.top, 18)
-
-                VStack {
-                    HStack {
-                        Spacer()
-                        StarCounter(stars: game.stars)
-                    }
-                    Spacer()
-                }
-                .padding(.horizontal, 28)
-                .padding(.top, 16)
+                Spacer()
             }
         }
-        .ignoresSafeArea()
     }
+}
 
-    private func pick(_ cat: Cat) {
-        guard awake == nil else { return }
-        Haptics.pop()
-        game.choose(cat)
-        awake = cat.id
-        withAnimation(.spring(response: 0.3, dampingFraction: 0.4).repeatCount(3, autoreverses: true)) {
-            hop = true
+struct CatStageSlot: View {
+    let catType: CatType
+    let outfit: CatOutfit
+    let isWaving: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            ZStack {
+                StagePodium()
+                    .offset(y: 96)
+
+                CatView(catType: catType, outfit: outfit, isWaving: isWaving)
+            }
         }
-        Task { @MainActor in
-            try? await Task.sleep(for: .seconds(1.3))
-            game.go(.menu)
-        }
+        .buttonStyle(.plain)
     }
 }

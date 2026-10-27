@@ -1,265 +1,145 @@
 import SwiftUI
 
-struct BouncyButtonStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .scaleEffect(configuration.isPressed ? 0.88 : 1)
-            .animation(.spring(response: 0.25, dampingFraction: 0.5), value: configuration.isPressed)
-    }
-}
-
-/// Lesklé kulaté tlačítko jako v dětských hrách.
-struct GlossyCircle: View {
-    let top: Color
-    let bottom: Color
-    var ring: Color = .white
-    var ringWidth: CGFloat = 5
-
-    var body: some View {
-        ZStack {
-            Circle().fill(LinearGradient(colors: [top, bottom], startPoint: .top, endPoint: .bottom))
-            Circle().strokeBorder(ring, lineWidth: ringWidth)
-            GeometryReader { g in
-                Ellipse()
-                    .fill(Color.white.opacity(0.45))
-                    .frame(width: g.size.width * 0.28, height: g.size.height * 0.16)
-                    .rotationEffect(.degrees(-35))
-                    .position(x: g.size.width * 0.3, y: g.size.height * 0.24)
-            }
-        }
-        .shadow(color: .black.opacity(0.25), radius: 3, y: 4)
-    }
-}
-
-struct HomeButton: View {
+struct TopCircleButton: View {
+    let systemIcon: String
     let action: () -> Void
 
     var body: some View {
-        Button {
-            Haptics.tap()
-            action()
-        } label: {
+        Button(action: action) {
             ZStack {
-                GlossyCircle(top: Color(hex: 0x6CC0FF), bottom: Color(hex: 0x1E78E8))
-                Image(systemName: "house.fill")
-                    .font(.system(size: 26, weight: .bold))
-                    .foregroundStyle(.white)
+                Circle()
+                    .fill(
+                        LinearGradient(
+                            colors: [Color(red: 0.32, green: 0.72, blue: 0.98), Color(red: 0.14, green: 0.52, blue: 0.94)],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
+                    .frame(width: 46, height: 46)
+                    .overlay(Circle().stroke(Color.white, lineWidth: 3))
+                    .shadow(color: .black.opacity(0.2), radius: 3, y: 2)
+
+                Image(systemName: systemIcon)
+                    .font(.system(size: 22, weight: .bold))
+                    .foregroundColor(.white)
             }
-            .frame(width: 62, height: 62)
         }
-        .buttonStyle(BouncyButtonStyle())
+        .buttonStyle(.plain)
     }
 }
 
-struct PlayButton: View {
-    var size: CGFloat = 90
-    let action: () -> Void
-
-    var body: some View {
-        Button {
-            Haptics.tap()
-            action()
-        } label: {
-            ZStack {
-                GlossyCircle(top: Color(hex: 0x5FB2FF), bottom: Color(hex: 0x1E6FE0), ringWidth: size * 0.08)
-                Image(systemName: "play.fill")
-                    .font(.system(size: size * 0.4, weight: .black))
-                    .foregroundStyle(.white)
-                    .offset(x: size * 0.04)
-            }
-            .frame(width: size, height: size)
-        }
-        .buttonStyle(BouncyButtonStyle())
-    }
-}
-
-/// Zelené „hotovo“ visící na růžovém provázku.
 struct HangingCheckButton: View {
-    var size: CGFloat = 86
-    var rope: CGFloat = 70
     let action: () -> Void
-    @State private var swing = false
 
     var body: some View {
-        VStack(spacing: -4) {
-            Capsule().fill(Color(hex: 0xE0509C)).frame(width: 9, height: rope)
-            Button {
-                Haptics.pop()
-                action()
-            } label: {
+        Button(action: action) {
+            VStack(spacing: -6) {
+                // Růžový závěsný popruh
+                Rectangle()
+                    .fill(Color(red: 0.86, green: 0.32, blue: 0.68))
+                    .frame(width: 14, height: 74)
+                    .overlay(Rectangle().stroke(Color.white, lineWidth: 2))
+
+                // Zelené kulaté tlačítko s fajfkou
                 ZStack {
-                    Circle().fill(Color(hex: 0xF070B4)).frame(width: size + 14, height: size + 14)
-                    GlossyCircle(top: Color(hex: 0x9CF06A), bottom: Color(hex: 0x3CC23C), ringWidth: 4)
-                        .frame(width: size, height: size)
+                    Circle()
+                        .fill(Color(red: 0.92, green: 0.42, blue: 0.72))
+                        .frame(width: 78, height: 78)
+                        .overlay(Circle().stroke(Color.white, lineWidth: 3))
+
+                    Circle()
+                        .fill(
+                            LinearGradient(
+                                colors: [Color(red: 0.55, green: 0.92, blue: 0.25), Color(red: 0.35, green: 0.78, blue: 0.18)],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
+                        )
+                        .frame(width: 66, height: 66)
+
                     Image(systemName: "checkmark")
-                        .font(.system(size: size * 0.42, weight: .black))
-                        .foregroundStyle(.white)
-                }
-            }
-            .buttonStyle(BouncyButtonStyle())
-        }
-        .rotationEffect(.degrees(swing ? 4 : -4), anchor: .top)
-        .onAppear {
-            withAnimation(.easeInOut(duration: 1.4).repeatForever(autoreverses: true)) { swing = true }
-        }
-    }
-}
-
-struct StarCounter: View {
-    let stars: Int
-
-    var body: some View {
-        HStack(spacing: 6) {
-            Image(systemName: "star.fill")
-                .foregroundStyle(Color(hex: 0xFFC21F))
-                .shadow(color: Color(hex: 0xC98A10), radius: 0, y: 2)
-            Text("\(stars)")
-                .foregroundStyle(Color(hex: 0x6A3A9E))
-        }
-        .font(.system(size: 26, weight: .heavy, design: .rounded))
-        .padding(.horizontal, 18)
-        .padding(.vertical, 8)
-        .background(Capsule().fill(Color.white).shadow(color: .black.opacity(0.2), radius: 2, y: 3))
-    }
-}
-
-/// Bublina s textem nebo nápovědou.
-struct HintBubble: View {
-    let text: String
-
-    var body: some View {
-        Text(text)
-            .font(.system(size: 22, weight: .heavy, design: .rounded))
-            .foregroundStyle(Color(hex: 0x6A3A9E))
-            .multilineTextAlignment(.center)
-            .padding(.horizontal, 20)
-            .padding(.vertical, 10)
-            .background(Capsule().fill(Color.white.opacity(0.92)).shadow(color: .black.opacity(0.15), radius: 2, y: 3))
-    }
-}
-
-/// Domeček vlevo nahoře a hvězdičky vpravo.
-struct TopBar: View {
-    let stars: Int
-    let onHome: () -> Void
-
-    var body: some View {
-        VStack {
-            HStack(alignment: .top) {
-                HomeButton(action: onHome)
-                Spacer()
-                StarCounter(stars: stars)
-            }
-            Spacer()
-        }
-        .padding(.horizontal, 28)
-        .padding(.top, 16)
-    }
-}
-
-// MARK: - Oslava
-
-struct CelebrationView: View {
-    var title = "Výborně!"
-    let onDone: () -> Void
-    @State private var appear = false
-
-    var body: some View {
-        ZStack {
-            Color.black.opacity(0.25).ignoresSafeArea()
-            ConfettiView()
-            VStack(spacing: 14) {
-                HStack(spacing: 10) {
-                    ForEach(0..<3, id: \.self) { i in
-                        Image(systemName: "star.fill")
-                            .font(.system(size: i == 1 ? 70 : 52))
-                            .foregroundStyle(LinearGradient(colors: [Color(hex: 0xFFF08A), Color(hex: 0xFFB21F)], startPoint: .top, endPoint: .bottom))
-                            .shadow(color: Color(hex: 0xC98A10), radius: 0, y: 4)
-                            .offset(y: i == 1 ? -14 : 0)
-                    }
-                }
-                Text(title)
-                    .font(.system(size: 56, weight: .black, design: .rounded))
-                    .foregroundStyle(.white)
-                    .shadow(color: Color(hex: 0xD9408F), radius: 0, x: 0, y: 5)
-                PlayButton(size: 84, action: onDone)
-            }
-            .scaleEffect(appear ? 1 : 0.2)
-            .opacity(appear ? 1 : 0)
-        }
-        .onAppear {
-            Haptics.success()
-            withAnimation(.spring(response: 0.5, dampingFraction: 0.55)) { appear = true }
-        }
-    }
-}
-
-struct ConfettiView: View {
-    private struct Piece {
-        let x: Double, y0: Double, speed: Double, wobble: Double, phase: Double, spin: Double
-        let color: Color
-        let size: CGSize
-    }
-
-    @State private var start = Date()
-    @State private var pieces: [Piece] = (0..<80).map { _ in
-        Piece(x: .random(in: 0...1), y0: .random(in: -1...0), speed: .random(in: 0.18...0.38),
-              wobble: .random(in: 1...3), phase: .random(in: 0...6), spin: .random(in: -6...6),
-              color: [Color(hex: 0xFF5FA2), Color(hex: 0xFFD23F), Color(hex: 0x3FD0C9), Color(hex: 0x7B5CFF), Color(hex: 0x5FD35F)].randomElement()!,
-              size: CGSize(width: .random(in: 8...14), height: .random(in: 6...10)))
-    }
-
-    var body: some View {
-        TimelineView(.animation) { timeline in
-            Canvas { ctx, size in
-                let t = timeline.date.timeIntervalSince(start)
-                for p in pieces {
-                    let y = (p.y0 + t * p.speed).truncatingRemainder(dividingBy: 1.2) - 0.05
-                    let x = p.x + sin(t * p.wobble + p.phase) * 0.03
-                    var c = ctx
-                    c.translateBy(x: x * size.width, y: y * size.height)
-                    c.rotate(by: .radians(t * p.spin))
-                    let r = CGRect(x: -p.size.width / 2, y: -p.size.height / 2, width: p.size.width, height: p.size.height)
-                    c.fill(Path(roundedRect: r, cornerRadius: 2), with: .color(p.color))
+                        .font(.system(size: 30, weight: .heavy))
+                        .foregroundColor(.white)
                 }
             }
         }
-        .allowsHitTesting(false)
-        .ignoresSafeArea()
+        .buttonStyle(.plain)
     }
 }
 
-/// Třpytky a srdíčka, která vybuchnou kolem kočičky pokaždé, když se změní `trigger`.
-struct SparkleBurst: View {
-    let trigger: Int
+struct ThermometerProgressBar: View {
+    let progress: Double // 0.0 až 1.0
 
     var body: some View {
-        ZStack {
-            if trigger > 0 {
-                Burst().id(trigger)
+        ZStack(alignment: .bottom) {
+            // Trubice teploměru
+            VStack(spacing: -14) {
+                ZStack(alignment: .bottom) {
+                    Capsule()
+                        .fill(Color(red: 0.12, green: 0.38, blue: 0.78))
+                        .frame(width: 36, height: 210)
+                        .overlay(Capsule().stroke(Color.white, lineWidth: 4))
+
+                    Capsule()
+                        .fill(
+                            LinearGradient(
+                                colors: [Color(red: 0.35, green: 0.78, blue: 1.0), Color(red: 0.18, green: 0.56, blue: 0.96)],
+                                startPoint: .bottom,
+                                endPoint: .top
+                            )
+                        )
+                        .frame(width: 26, height: max(26, CGFloat(progress) * 198))
+                        .padding(.bottom, 6)
+                }
+
+                // Spodní baňka
+                Circle()
+                    .fill(
+                        RadialGradient(
+                            colors: [Color(red: 0.48, green: 0.88, blue: 1.0), Color(red: 0.16, green: 0.58, blue: 0.98)],
+                            center: .topLeading,
+                            startRadius: 4,
+                            endRadius: 34
+                        )
+                    )
+                    .frame(width: 58, height: 58)
+                    .overlay(Circle().stroke(Color.white, lineWidth: 4))
             }
         }
-        .allowsHitTesting(false)
     }
+}
 
-    private struct Burst: View {
-        @State private var animate = false
+struct BigPlayButton: View {
+    let action: () -> Void
 
-        var body: some View {
+    var body: some View {
+        Button(action: action) {
             ZStack {
-                ForEach(0..<10, id: \.self) { i in
-                    let a = CGFloat(i) / 10 * 2 * .pi
-                    Image(systemName: i.isMultiple(of: 2) ? "sparkle" : "heart.fill")
-                        .font(.system(size: i.isMultiple(of: 2) ? 30 : 22))
-                        .foregroundStyle(i.isMultiple(of: 2) ? Color(hex: 0xFFD23F) : Color(hex: 0xFF5FA2))
-                        .offset(x: animate ? cos(a) * 130 : 0, y: animate ? sin(a) * 130 : 0)
-                        .opacity(animate ? 0 : 1)
-                        .scaleEffect(animate ? 1.3 : 0.3)
-                }
-            }
-            .onAppear {
-                withAnimation(.easeOut(duration: 0.9)) { animate = true }
+                Circle()
+                    .fill(
+                        LinearGradient(
+                            colors: [Color(red: 0.28, green: 0.72, blue: 1.0), Color(red: 0.12, green: 0.48, blue: 0.96)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .frame(width: 156, height: 156)
+                    .overlay(Circle().stroke(Color.white, lineWidth: 6))
+                    .shadow(color: .black.opacity(0.25), radius: 6, y: 4)
+
+                // Odlesk
+                Ellipse()
+                    .fill(Color.white.opacity(0.35))
+                    .frame(width: 44, height: 22)
+                    .rotationEffect(.degrees(-35))
+                    .offset(x: -36, y: -38)
+
+                Image(systemName: "play.fill")
+                    .font(.system(size: 70, weight: .black))
+                    .foregroundColor(.white)
+                    .offset(x: 6)
             }
         }
+        .buttonStyle(.plain)
     }
 }

@@ -1,51 +1,40 @@
 import SwiftUI
-import Observation
 
-enum Screen: Hashable {
-    case select, menu, dressUp, feeding, litter, grooming
+enum Screen {
+    case menu
+    case selectCat
+    case dressUp
+    case feeding
+    case grooming
+    case litter
 }
 
-@Observable
-final class GameState {
-    var screen: Screen = .select
-    private(set) var catID = 0
-    private(set) var outfits: [Int: Outfit] = [:]
-    private(set) var stars = 0
+class GameState: ObservableObject {
+    @Published var currentScreen: Screen = .menu
+    @Published var selectedCat: CatType = .ginger
 
-    private let defaults = UserDefaults.standard
+    @Published var outfits: [CatType: CatOutfit] = [
+        .ginger: CatOutfit(),
+        .spotted: CatOutfit(),
+        .grey: CatOutfit.policePreset
+    ]
 
-    init() {
-        catID = defaults.integer(forKey: "catID")
-        stars = defaults.integer(forKey: "stars")
-        if let data = defaults.data(forKey: "outfits"),
-           let saved = try? JSONDecoder().decode([Int: Outfit].self, from: data) {
-            outfits = saved
-        }
+    @Published var hungerProgress: Double = 0.75
+    @Published var desiredFood: FoodType = .salmon
+    @Published var groomingProgress: Double = 0.35
+    @Published var litterProgress: Double = 0.25
+
+    var currentOutfit: CatOutfit {
+        get { outfits[selectedCat] ?? CatOutfit() }
+        set { outfits[selectedCat] = newValue }
     }
 
-    var cat: Cat { Cat.all.first { $0.id == catID } ?? Cat.all[0] }
-
-    var outfit: Outfit {
-        get { outfits[catID] ?? Outfit() }
-        set {
-            outfits[catID] = newValue
-            if let data = try? JSONEncoder().encode(outfits) {
-                defaults.set(data, forKey: "outfits")
-            }
-        }
+    func selectCat(_ cat: CatType) {
+        selectedCat = cat
+        currentScreen = .dressUp
     }
 
-    func choose(_ cat: Cat) {
-        catID = cat.id
-        defaults.set(catID, forKey: "catID")
-    }
-
-    func completeGame() {
-        stars += 1
-        defaults.set(stars, forKey: "stars")
-    }
-
-    func go(_ screen: Screen) {
-        withAnimation(.easeInOut(duration: 0.35)) { self.screen = screen }
+    func randomizeCraving() {
+        desiredFood = FoodType.allCases.randomElement() ?? .salmon
     }
 }
